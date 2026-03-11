@@ -3,10 +3,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getIdentity } from '@/lib/auth'
-import { ClipboardList, LogOut, ChevronDown } from 'lucide-react'
+import { ClipboardList, LogOut, ChevronDown, FileText } from 'lucide-react'
 
 // Rubric 只評實踐組 A01–A05
 const RUBRIC_STUDENTS = ['A01', 'A02', 'A03', 'A04', 'A05']
+
+// 設計說明書評分維度（4維度，各 0–4 分，共 16 分）
+const DESIGN_DIMENSIONS = [
+  { key: 'user_awareness',    label: '使用者意識',    desc: '設計是否考量使用者需求與體驗' },
+  { key: 'stem_reasoning',   label: '科學/數學依據', desc: '有具體的技術或數學推導支撐設計' },
+  { key: 'design_tradeoff',  label: '設計取捨論述', desc: '能說明為何選擇此方案，放棄哪些替代方案' },
+  { key: 'beyond_basic',     label: '超越基本要求', desc: '有創意延伸或超出最低功能要求的設計' },
+] as const
+
+type DesignDimensionKey = typeof DESIGN_DIMENSIONS[number]['key']
 
 const LABS = ['lab03', 'lab04', 'lab05']
 
@@ -56,6 +66,16 @@ export default function TAPage() {
   const [message, setMessage] = useState('')
   const [existingScores, setExistingScores] = useState<RubricScore[]>([])
   const [showHistory, setShowHistory] = useState(false)
+  const [activeTab, setActiveTab] = useState<'lab' | 'design' | 'observation'>('lab')
+
+  // 設計說明書評分
+  const [designScores, setDesignScores] = useState<Record<DesignDimensionKey, number>>({
+    user_awareness: 0, stem_reasoning: 0, design_tradeoff: 0, beyond_basic: 0,
+  })
+  const [designStudent, setDesignStudent] = useState('A01')
+  const [designNotes, setDesignNotes] = useState('')
+  const [designMessage, setDesignMessage] = useState('')
+  const [submittingDesign, setSubmittingDesign] = useState(false)
 
   // 結構化觀察筆記
   const [obsChecks, setObsChecks] = useState<Record<ObsCheckKey, boolean>>(
@@ -125,6 +145,37 @@ export default function TAPage() {
     setSubmitting(false)
   }
 
+  async function handleDesignSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmittingDesign(true)
+    setDesignMessage('')
+    if (DESIGN_DIMENSIONS.some((d) => designScores[d.key] === 0)) {
+      setDesignMessage('請為所有維度評分')
+      setSubmittingDesign(false)
+      return
+    }
+    try {
+      const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'rubric',
+          lab: `design_${selectedLab}`,
+          data: { studentId: designStudent },
+          scores: Object.fromEntries(DESIGN_DIMENSIONS.map((d) => [d.key, designScores[d.key]])),
+          notes: designNotes || '',
+        }),
+      })
+      if (!res.ok) { setDesignMessage('儲存失敗') }
+      else {
+        setDesignMessage('設計評分已儲存 ✓')
+        setDesignScores({ user_awareness: 0, stem_reasoning: 0, design_tradeoff: 0, beyond_basic: 0 })
+        setDesignNotes('')
+      }
+    } catch { setDesignMessage('網路錯誤') }
+    setSubmittingDesign(false)
+  }
+
   async function handleObservationSubmit() {
     setObsMessage('')
     const checkedItems = OBS_CHECKLIST.filter((o) => obsChecks[o.key]).map((o) => o.label)
@@ -178,6 +229,28 @@ export default function TAPage() {
 
       <main className="mx-auto max-w-4xl space-y-8 px-4 py-6">
 
+        {/* Tab 切換 */}
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+          {([
+            { key: 'lab',         icon: <ClipboardList className="h-4 w-4" />, label: 'Lab Rubric（實作）' },
+            { key: 'design',      icon: <FileText className="h-4 w-4" />,      label: '設計說明書評分' },
+            { key: 'observation', icon: <ChevronDown className="h-4 w-4" />,   label: '觀察員筆記' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${
+                activeTab === tab.key
+                  ? 'bg-white shadow text-foreground'
+                  : 'text-muted hover:text-foreground'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* 選擇 Lab / 學生 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -209,8 +282,8 @@ export default function TAPage() {
           </div>
         </div>
 
-        {/* ── Rubric 評分 ── */}
-        <section className="card space-y-5">
+        {/* ── Lab Rubric 評分 ── */}
+        {activeTab === 'lab' && <section className="card space-y-5">
           <h2 className="text-base font-bold text-foreground">Rubric 五維度評分</h2>
           <p className="text-xs text-muted">每個維度 1–4 分，總分 20 分</p>
 
@@ -280,10 +353,94 @@ export default function TAPage() {
               {submitting ? '儲存中...' : '提交評分'}
             </button>
           </form>
-        </section>
+        </section>}
+
+        {/* ── 設計說明書評分 ── */}
+        {activeTab === 'design' && (
+          <section className="card space-y-5">
+            <h2 className="text-base font-bold text-foreground">設計說明書評分（Group A 實踐組）</h2>
+            <p className="text-xs text-muted">對應 Lab03/04/05 的設計說明書，每個維度 0–4 分，總分 16 分</p>
+
+            <form onSubmit={handleDesignSubmit} className="space-y-5">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">學生代碼</label>
+                <select
+                  value={designStudent}
+                  onChange={(e) => setDesignStudent(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                >
+                  {RUBRIC_STUDENTS.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </div>
+
+              {DESIGN_DIMENSIONS.map((dim) => (
+                <div key={dim.key}>
+                  <div className="mb-1.5 flex items-baseline gap-2">
+                    <span className="text-sm font-medium text-foreground">{dim.label}</span>
+                    <span className="text-xs text-muted">{dim.desc}</span>
+                  </div>
+                  <div className="flex gap-3">
+                    {[0, 1, 2, 3, 4].map((val) => (
+                      <label
+                        key={val}
+                        className={`flex h-10 w-12 cursor-pointer items-center justify-center rounded-lg border-2 text-sm font-medium transition-all ${
+                          designScores[dim.key] === val
+                            ? 'border-primary bg-primary text-white'
+                            : 'border-border bg-white text-foreground hover:border-primary/50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={`design_${dim.key}`}
+                          value={val}
+                          checked={designScores[dim.key] === val}
+                          onChange={() => setDesignScores((prev) => ({ ...prev, [dim.key]: val }))}
+                          className="sr-only"
+                        />
+                        {val}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="border-t border-border pt-4">
+                <p className="text-sm text-muted">
+                  設計總分：
+                  <span className="ml-1 text-lg font-bold text-foreground">
+                    {Object.values(designScores).reduce((a, b) => a + b, 0)}
+                  </span>
+                  <span className="text-muted"> / 16</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">評分備注（選填）</label>
+                <textarea
+                  value={designNotes}
+                  onChange={(e) => setDesignNotes(e.target.value)}
+                  rows={2}
+                  placeholder="設計亮點、需改進之處..."
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm placeholder:text-muted focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              {designMessage && (
+                <p className={`text-sm ${designMessage.includes('失敗') || designMessage.includes('錯誤') ? 'text-error' : 'text-success'}`}>
+                  {designMessage}
+                </p>
+              )}
+              <button type="submit" disabled={submittingDesign} className="btn-primary w-full">
+                {submittingDesign ? '儲存中...' : '提交設計評分'}
+              </button>
+            </form>
+          </section>
+        )}
 
         {/* ── 結構化觀察員筆記 ── */}
-        <section className="card space-y-5">
+        {activeTab === 'observation' && <section className="card space-y-5">
           <h2 className="text-base font-bold text-foreground">課堂觀察紀錄</h2>
           <p className="text-xs text-muted">本次 Lab 整體觀察，不限特定學生</p>
 
@@ -361,7 +518,7 @@ export default function TAPage() {
           >
             儲存觀察紀錄
           </button>
-        </section>
+        </section>}  {/* end observation */}
 
         {/* ── 已評分記錄 ── */}
         <div>

@@ -298,7 +298,7 @@ export default function AdminPage() {
                           className="px-1 py-2 text-center font-medium text-muted"
                           title={mod.title}
                         >
-                          <div className="w-8 truncate">{mod.id.slice(0, 6)}</div>
+                          <div className="w-12 truncate text-xs" title={mod.id}>{mod.title.replace('（前測）','前').replace('（後測）','後').replace('設計說明書','說明').replace('任務卡','任務').replace(' 全版','').replace(' 簡版','簡').replace('問題解決測驗','GABER').replace('滿意度問卷','TAM')}</div>
                         </th>
                       ))}
                     </tr>

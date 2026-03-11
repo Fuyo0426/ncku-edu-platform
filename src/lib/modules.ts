@@ -772,8 +772,8 @@ export const MODULES: Module[] = [
   {
     id: 'tam',
     title: 'TAM 滿意度問卷',
-    description: '請針對你在本課程中使用的學習輔助系統，回答以下問題。',
-    group: ['A', 'B'],
+    description: '請針對你在本課程中使用的 STEAM AI 題庫系統，回答以下問題。',
+    group: ['B'],
     phase: 3,
     autoOpenDate: '2026-04-28',
     questions: [

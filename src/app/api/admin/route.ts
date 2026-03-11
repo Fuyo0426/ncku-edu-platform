@@ -68,30 +68,45 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Export CSV for a group
+    // Export CSV for a group (or 'ALL')
     if (action === 'export') {
-      const group = searchParams.get('group') || 'A'
-      const responses = await getAllResponses()
+      const group = searchParams.get('group') || 'ALL'
+      const type = searchParams.get('type') || 'responses' // 'responses' | 'rubrics'
 
-      const groupResponses = responses.filter((r) =>
-        r.studentId.startsWith(group)
-      )
-
-      // Build CSV
-      const rows: string[] = []
-      rows.push('studentId,moduleId,submittedAt,timeTaken,answers')
-
-      for (const r of groupResponses) {
-        const answersStr = JSON.stringify(r.answers).replace(/"/g, '""')
-        rows.push(
-          `${r.studentId},${r.moduleId},${r.submittedAt},${r.timeTaken ?? ''},\"${answersStr}\"`
-        )
+      if (type === 'rubrics') {
+        const rubrics = await getAllRubrics()
+        const filtered = group === 'ALL' ? rubrics : rubrics.filter((r) => r.studentId.startsWith(group))
+        const rows: string[] = []
+        rows.push('studentId,lab,taId,rubric_total,wiring,logic,debugging,extension,efficiency,notes,scoredAt')
+        for (const r of filtered) {
+          const s = r.scores || {}
+          const notesSafe = (r.notes || '').replace(/"/g, '""').replace(/\n/g, ' ')
+          rows.push(`${r.studentId},${r.lab},${r.taId || ''},${r.total},${s.wiring ?? ''},${s.logic ?? ''},${s.debugging ?? ''},${s.extension ?? ''},${s.efficiency ?? ''},"${notesSafe}",${r.scoredAt}`)
+        }
+        return new NextResponse('\uFEFF' + rows.join('\r\n'), {
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename=rubrics_${group}_${Date.now()}.csv`,
+          },
+        })
       }
 
-      return new NextResponse(rows.join('\n'), {
+      // Default: responses
+      const responses = await getAllResponses()
+      const filtered = group === 'ALL' ? responses : responses.filter((r: ResponseData) => r.studentId.startsWith(group))
+
+      const rows: string[] = []
+      rows.push('studentId,group,moduleId,submittedAt,timeTaken_sec,answers')
+      for (const r of filtered) {
+        const grp = r.studentId.charAt(0)
+        const answersJson = JSON.stringify(r.answers || {}).replace(/"/g, '""').replace(/\n/g, ' ')
+        rows.push(`${r.studentId},${grp},${r.moduleId},${r.submittedAt},${r.timeTaken ?? ''},"${answersJson}"`)
+      }
+
+      return new NextResponse('\uFEFF' + rows.join('\r\n'), {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename=export_group_${group}_${Date.now()}.csv`,
+          'Content-Disposition': `attachment; filename=responses_${group}_${Date.now()}.csv`,
         },
       })
     }
