@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getIdentity } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
 import { ClipboardList, LogOut, ChevronDown } from 'lucide-react'
 
 const STUDENTS = [
@@ -25,17 +24,13 @@ const DIMENSIONS = [
 type DimensionKey = typeof DIMENSIONS[number]['key']
 
 interface RubricScore {
-  id: string
-  student_code: string
+  studentId: string
   lab: string
-  wiring: number
-  logic: number
-  debugging: number
-  extension: number
-  efficiency: number
+  taId: string
+  scores: Record<string, number>
   total: number
   notes: string
-  scored_at: string
+  scoredAt: string
 }
 
 export default function TAPage() {
@@ -55,6 +50,10 @@ export default function TAPage() {
   const [existingScores, setExistingScores] = useState<RubricScore[]>([])
   const [showHistory, setShowHistory] = useState(false)
 
+  // Observation form
+  const [obsContent, setObsContent] = useState('')
+  const [obsMessage, setObsMessage] = useState('')
+
   useEffect(() => {
     const id = getIdentity()
     if (!id || id.role !== 'ta') {
@@ -63,14 +62,17 @@ export default function TAPage() {
   }, [router])
 
   const fetchScores = useCallback(async () => {
-    const { data } = await supabase
-      .from('rubric_scores')
-      .select('*')
-      .eq('lab', selectedLab)
-      .order('scored_at', { ascending: false })
-
-    if (data) {
-      setExistingScores(data as RubricScore[])
+    try {
+      const res = await fetch('/api/admin?action=rubrics')
+      if (res.ok) {
+        const json = await res.json()
+        const filtered = (json.rubrics || []).filter(
+          (r: RubricScore) => r.lab === selectedLab
+        )
+        setExistingScores(filtered)
+      }
+    } catch (err) {
+      console.error('Failed to fetch scores:', err)
     }
   }, [selectedLab])
 
@@ -83,7 +85,6 @@ export default function TAPage() {
     setSubmitting(true)
     setMessage('')
 
-    // Validate all dimensions scored
     const allScored = DIMENSIONS.every((d) => scores[d.key] > 0)
     if (!allScored) {
       setMessage('請為所有維度評分')
@@ -91,27 +92,61 @@ export default function TAPage() {
       return
     }
 
-    const { error } = await supabase.from('rubric_scores').insert({
-      student_code: selectedStudent,
-      lab: selectedLab,
-      scorer: 'TA',
-      wiring: scores.wiring,
-      logic: scores.logic,
-      debugging: scores.debugging,
-      extension: scores.extension,
-      efficiency: scores.efficiency,
-      notes: notes || null,
-    })
+    try {
+      const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'rubric',
+          lab: selectedLab,
+          data: { studentId: selectedStudent },
+          scores: Object.fromEntries(
+            DIMENSIONS.map((d) => [d.key, scores[d.key]])
+          ),
+          notes: notes || '',
+        }),
+      })
 
-    if (error) {
-      setMessage('儲存失敗: ' + error.message)
-    } else {
-      setMessage('評分已儲存')
-      setScores({ wiring: 0, logic: 0, debugging: 0, extension: 0, efficiency: 0 })
-      setNotes('')
-      fetchScores()
+      if (!res.ok) {
+        const json = await res.json()
+        setMessage('儲存失敗: ' + (json.error || ''))
+      } else {
+        setMessage('評分已儲存')
+        setScores({ wiring: 0, logic: 0, debugging: 0, extension: 0, efficiency: 0 })
+        setNotes('')
+        fetchScores()
+      }
+    } catch {
+      setMessage('網路錯誤')
     }
     setSubmitting(false)
+  }
+
+  async function handleObservation() {
+    if (!obsContent.trim()) return
+    setObsMessage('')
+
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save-observation',
+          lab: selectedLab,
+          taId: 'TA',
+          data: { content: obsContent, lab: selectedLab },
+        }),
+      })
+
+      if (res.ok) {
+        setObsMessage('觀察紀錄已儲存')
+        setObsContent('')
+      } else {
+        setObsMessage('儲存失敗')
+      }
+    } catch {
+      setObsMessage('網路錯誤')
+    }
   }
 
   function handleLogout() {
@@ -242,7 +277,9 @@ export default function TAPage() {
           {message && (
             <p
               className={`text-sm ${
-                message.includes('失敗') ? 'text-error' : 'text-success'
+                message.includes('失敗') || message.includes('錯誤')
+                  ? 'text-error'
+                  : 'text-success'
               }`}
             >
               {message}
@@ -257,6 +294,37 @@ export default function TAPage() {
             {submitting ? '儲存中...' : '提交評分'}
           </button>
         </form>
+
+        {/* Observation Form */}
+        <div className="mt-8 card">
+          <h2 className="text-base font-bold text-foreground mb-4">
+            課堂觀察紀錄
+          </h2>
+          <textarea
+            value={obsContent}
+            onChange={(e) => setObsContent(e.target.value)}
+            rows={4}
+            placeholder="記錄課堂觀察（學生互動、提問、遇到的困難等）..."
+            className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+          />
+          {obsMessage && (
+            <p
+              className={`mt-2 text-sm ${
+                obsMessage.includes('失敗') ? 'text-error' : 'text-success'
+              }`}
+            >
+              {obsMessage}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleObservation}
+            disabled={!obsContent.trim()}
+            className="btn-primary mt-3"
+          >
+            儲存觀察紀錄
+          </button>
+        </div>
 
         {/* History */}
         <div className="mt-8">
@@ -286,17 +354,17 @@ export default function TAPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {existingScores.map((s) => (
-                    <tr key={s.id} className="border-b border-border/50">
-                      <td className="py-2 pr-3 font-medium">{s.student_code}</td>
-                      <td className="py-2 pr-3">{s.wiring}</td>
-                      <td className="py-2 pr-3">{s.logic}</td>
-                      <td className="py-2 pr-3">{s.debugging}</td>
-                      <td className="py-2 pr-3">{s.extension}</td>
-                      <td className="py-2 pr-3">{s.efficiency}</td>
+                  {existingScores.map((s, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="py-2 pr-3 font-medium">{s.studentId}</td>
+                      <td className="py-2 pr-3">{s.scores?.wiring ?? '-'}</td>
+                      <td className="py-2 pr-3">{s.scores?.logic ?? '-'}</td>
+                      <td className="py-2 pr-3">{s.scores?.debugging ?? '-'}</td>
+                      <td className="py-2 pr-3">{s.scores?.extension ?? '-'}</td>
+                      <td className="py-2 pr-3">{s.scores?.efficiency ?? '-'}</td>
                       <td className="py-2 pr-3 font-bold">{s.total}</td>
                       <td className="py-2 text-xs text-muted">
-                        {new Date(s.scored_at).toLocaleString('zh-TW')}
+                        {new Date(s.scoredAt).toLocaleString('zh-TW')}
                       </td>
                     </tr>
                   ))}

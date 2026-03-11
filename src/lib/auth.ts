@@ -10,7 +10,7 @@ const COOKIE_KEY = 'edu_identity'
 
 export function setIdentity(identity: Identity): void {
   Cookies.set(COOKIE_KEY, JSON.stringify(identity), {
-    expires: 1, // 1 day
+    expires: 1,
     sameSite: 'lax',
   })
 }

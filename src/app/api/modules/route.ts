@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+import { getModuleStatus, getStudentCompletedModules } from '@/lib/blob'
 
 /**
  * GET /api/modules
@@ -16,28 +16,21 @@ export async function GET() {
 
     const identity = JSON.parse(identityRaw)
 
-    // Get module statuses
-    const { data: statuses } = await supabase
-      .from('module_status')
-      .select('module_id, enabled')
+    const [statusMap, completedModules] = await Promise.all([
+      getModuleStatus(),
+      identity.role === 'student'
+        ? getStudentCompletedModules(identity.code)
+        : Promise.resolve([]),
+    ])
 
-    // Get completions for this user
-    const { data: responses } = await supabase
-      .from('responses')
-      .select('module_id')
-      .eq('code', identity.code)
-
-    const statusMap: Record<string, boolean> = {}
-    for (const s of statuses || []) {
-      statusMap[s.module_id] = s.enabled
+    // Convert status map to simple boolean map
+    const boolStatusMap: Record<string, boolean> = {}
+    for (const [moduleId, status] of Object.entries(statusMap)) {
+      boolStatusMap[moduleId] = status.isOpen
     }
 
-    const completedModules = [
-      ...new Set((responses || []).map((r: { module_id: string }) => r.module_id)),
-    ]
-
     return NextResponse.json({
-      statusMap,
+      statusMap: boolStatusMap,
       completedModules,
     })
   } catch {

@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify student has authenticated
     const cookieStore = await cookies()
     const role = cookieStore.get('edu_role')?.value
     if (role !== 'student') {
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest) {
       path: '/',
     })
 
-    // Clean up temp cookie
     cookieStore.delete('edu_role')
 
     return NextResponse.json({ success: true })

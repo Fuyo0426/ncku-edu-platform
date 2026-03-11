@@ -3,14 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getIdentity, GROUP_LABELS, type Identity } from '@/lib/auth'
-import { getModulesForGroup, PHASE_LABELS, type GroupId, type ModuleDefinition, type Phase } from '@/lib/modules'
-import { supabase } from '@/lib/supabase'
+import { getModulesForGroup, PHASE_LABELS, type GroupId, type Module, type Phase } from '@/lib/modules'
 import { CheckCircle, Lock, ChevronRight, LogOut, User } from 'lucide-react'
-
-interface ModuleStatus {
-  module_id: string
-  enabled: boolean
-}
 
 export default function DashboardPage() {
   const [identity, setIdentity] = useState<Identity | null>(null)
@@ -19,26 +13,22 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const fetchData = useCallback(async (id: Identity) => {
+  const fetchData = useCallback(async () => {
     try {
-      // Fetch completed modules
-      const { data: responses } = await supabase
-        .from('responses')
-        .select('module_id')
-        .eq('code', id.code)
+      const res = await fetch('/api/modules')
+      if (!res.ok) return
+      const json = await res.json()
 
-      if (responses) {
-        setCompletedModules(new Set(responses.map((r: { module_id: string }) => r.module_id)))
+      if (json.completedModules) {
+        setCompletedModules(new Set(json.completedModules))
       }
 
-      // Fetch module status
-      const { data: statuses } = await supabase
-        .from('module_status')
-        .select('module_id, enabled')
-        .eq('enabled', true)
-
-      if (statuses) {
-        setEnabledModules(new Set(statuses.map((s: ModuleStatus) => s.module_id)))
+      if (json.statusMap) {
+        const enabled = new Set<string>()
+        for (const [moduleId, isOpen] of Object.entries(json.statusMap)) {
+          if (isOpen) enabled.add(moduleId)
+        }
+        setEnabledModules(enabled)
       }
     } catch (err) {
       console.error('Failed to fetch data:', err)
@@ -54,7 +44,7 @@ export default function DashboardPage() {
       return
     }
     setIdentity(id)
-    fetchData(id)
+    fetchData()
   }, [router, fetchData])
 
   function handleLogout() {
@@ -74,13 +64,13 @@ export default function DashboardPage() {
   const modules = getModulesForGroup(identity.group as GroupId)
 
   // Group modules by phase
-  const modulesByPhase = modules.reduce<Record<Phase, ModuleDefinition[]>>(
+  const modulesByPhase = modules.reduce<Record<Phase, Module[]>>(
     (acc, mod) => {
       if (!acc[mod.phase]) acc[mod.phase] = []
       acc[mod.phase].push(mod)
       return acc
     },
-    {} as Record<Phase, ModuleDefinition[]>
+    {} as Record<Phase, Module[]>
   )
 
   return (
@@ -120,11 +110,11 @@ export default function DashboardPage() {
         <h2 className="mb-6 text-xl font-bold text-foreground">我的待辦項目</h2>
 
         <div className="space-y-8">
-          {(Object.entries(modulesByPhase) as [Phase, ModuleDefinition[]][]).map(
+          {(Object.entries(modulesByPhase) as [string, Module[]][]).map(
             ([phase, mods]) => (
               <section key={phase}>
                 <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
-                  {PHASE_LABELS[phase]}
+                  {PHASE_LABELS[Number(phase) as Phase]}
                 </h3>
                 <div className="space-y-2">
                   {mods.map((mod) => {
@@ -155,17 +145,24 @@ export default function DashboardPage() {
                           ) : (
                             <Lock className="h-5 w-5 text-muted" />
                           )}
-                          <span
-                            className={`text-sm font-medium ${
-                              completed
-                                ? 'text-success'
-                                : enabled
-                                  ? 'text-foreground'
-                                  : 'text-muted'
-                            }`}
-                          >
-                            {mod.name}
-                          </span>
+                          <div>
+                            <span
+                              className={`text-sm font-medium ${
+                                completed
+                                  ? 'text-success'
+                                  : enabled
+                                    ? 'text-foreground'
+                                    : 'text-muted'
+                              }`}
+                            >
+                              {mod.title}
+                            </span>
+                            {mod.timeLimit && (
+                              <span className="ml-2 text-xs text-muted">
+                                ({mod.timeLimit} 分鐘)
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-xs text-muted">
                           {completed

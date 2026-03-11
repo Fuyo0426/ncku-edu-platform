@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         httpOnly: false,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24, // 1 day
+        maxAge: 60 * 60 * 24,
         path: '/',
       })
       return NextResponse.json({ role: 'admin' })
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (password === studentPwd) {
-      // Student needs to select identity next
       const cookieStore = await cookies()
       cookieStore.set('edu_role', 'student', {
         httpOnly: false,
