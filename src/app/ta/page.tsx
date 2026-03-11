@@ -70,7 +70,7 @@ export default function TAPage() {
 
   // 設計說明書評分
   const [designScores, setDesignScores] = useState<Record<DesignDimensionKey, number>>({
-    user_awareness: 0, stem_reasoning: 0, design_tradeoff: 0, beyond_basic: 0,
+    user_awareness: -1, stem_reasoning: -1, design_tradeoff: -1, beyond_basic: -1,
   })
   const [designStudent, setDesignStudent] = useState('A01')
   const [designNotes, setDesignNotes] = useState('')
@@ -149,7 +149,7 @@ export default function TAPage() {
     e.preventDefault()
     setSubmittingDesign(true)
     setDesignMessage('')
-    if (DESIGN_DIMENSIONS.some((d) => designScores[d.key] === 0)) {
+    if (DESIGN_DIMENSIONS.some((d) => designScores[d.key] === -1)) {
       setDesignMessage('請為所有維度評分')
       setSubmittingDesign(false)
       return
@@ -169,7 +169,7 @@ export default function TAPage() {
       if (!res.ok) { setDesignMessage('儲存失敗') }
       else {
         setDesignMessage('設計評分已儲存 ✓')
-        setDesignScores({ user_awareness: 0, stem_reasoning: 0, design_tradeoff: 0, beyond_basic: 0 })
+        setDesignScores({ user_awareness: -1, stem_reasoning: -1, design_tradeoff: -1, beyond_basic: -1 })
         setDesignNotes('')
       }
     } catch { setDesignMessage('網路錯誤') }

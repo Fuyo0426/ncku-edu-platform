@@ -142,14 +142,40 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  if (!(await verifyAdmin())) {
-    return NextResponse.json({ error: '未授權' }, { status: 401 })
+async function verifyTaOrAdmin(): Promise<boolean> {
+  const cookieStore = await cookies()
+  const identityRaw = cookieStore.get('edu_identity')?.value
+  if (!identityRaw) return false
+  try {
+    const identity = JSON.parse(identityRaw)
+    return identity.role === 'admin' || identity.role === 'ta'
+  } catch {
+    return false
   }
+}
 
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { action } = body
+
+    // save-observation: allow TA or admin
+    if (action === 'save-observation') {
+      if (!(await verifyTaOrAdmin())) {
+        return NextResponse.json({ error: '未授權' }, { status: 401 })
+      }
+      const { lab, taId, data } = body
+      if (!lab || !data) {
+        return NextResponse.json({ error: '缺少參數' }, { status: 400 })
+      }
+      await saveObservation(lab, taId || 'TA', data)
+      return NextResponse.json({ success: true })
+    }
+
+    // All other POST actions: admin only
+    if (!(await verifyAdmin())) {
+      return NextResponse.json({ error: '未授權' }, { status: 401 })
+    }
 
     if (action === 'toggle-module') {
       const { moduleId, enabled } = body
@@ -166,15 +192,6 @@ export async function POST(request: NextRequest) {
       }
       await saveModuleStatus(status)
 
-      return NextResponse.json({ success: true })
-    }
-
-    if (action === 'save-observation') {
-      const { lab, taId, data } = body
-      if (!lab || !data) {
-        return NextResponse.json({ error: '缺少參數' }, { status: 400 })
-      }
-      await saveObservation(lab, taId || 'ADMIN', data)
       return NextResponse.json({ success: true })
     }
 
