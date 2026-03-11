@@ -23,6 +23,8 @@ export interface Module {
   timeLimit?: number // minutes
   questions: Question[]
   context?: string
+  autoOpenDate?: string  // YYYY-MM-DD，到此日期自動開放（台灣時間）
+  autoCloseDate?: string // YYYY-MM-DD，到此日期自動關閉
 }
 
 // ============================================================
@@ -55,6 +57,8 @@ export const MODULES: Module[] = [
     description: '參與研究前，請閱讀以下研究說明並表示同意。',
     group: ['A', 'B', 'C'],
     phase: 1,
+    autoOpenDate: '2026-03-10',
+    autoCloseDate: '2026-03-16',
     context: `本研究旨在探討不同教學輔助策略對工業物聯網課程學習成效之影響。研究過程中，您將依照分組完成不同的學習活動與測驗。所有資料僅供學術研究使用，以匿名方式處理與呈現。您可以隨時退出研究，且不會影響您的學業成績。
 
 研究主持人：國立成功大學
@@ -77,6 +81,8 @@ export const MODULES: Module[] = [
     title: '基本資料',
     group: ['A', 'B', 'C'],
     phase: 1,
+    autoOpenDate: '2026-03-10',
+    autoCloseDate: '2026-03-16',
     questions: [
       {
         id: 'gender',
@@ -124,6 +130,8 @@ export const MODULES: Module[] = [
     title: '自我效能量表（前測）',
     group: ['A', 'B', 'C'],
     phase: 1,
+    autoOpenDate: '2026-03-10',
+    autoCloseDate: '2026-03-16',
     questions: [
       { id: 'se1', type: 'likert5', label: '我有信心完成這門課的實作任務', options: LIKERT5_OPTIONS, required: true },
       { id: 'se2', type: 'likert5', label: '面對新的技術挑戰，我相信自己能找到解決方法', options: LIKERT5_OPTIONS, required: true },
@@ -143,10 +151,12 @@ export const MODULES: Module[] = [
   // ----------------------------------------------------------
   {
     id: 'hot_o1_full',
-    title: 'HOT O\u2081 全版',
+    title: 'HOT O₁ 全版',
     group: ['B', 'C'],
     phase: 1,
     timeLimit: 20,
+    autoOpenDate: '2026-03-10',
+    autoCloseDate: '2026-03-16',
     context: '你是一家中型電子零件組裝工廠的工程師，負責評估與維護廠內的設備監控系統。工廠有50台生產機台，部分已安裝感測器，部分仍依賴人工巡檢。',
     questions: [
       // A 組 分析層 (5 題)
@@ -238,10 +248,12 @@ export const MODULES: Module[] = [
   // ----------------------------------------------------------
   {
     id: 'hot_o1_simple',
-    title: 'HOT O\u2081 簡版',
+    title: 'HOT O₁ 簡版',
     group: ['A'],
     phase: 1,
     timeLimit: 15,
+    autoOpenDate: '2026-03-10',
+    autoCloseDate: '2026-03-16',
     context: '你是一家中型電子零件組裝工廠的工程師，負責評估與維護廠內的設備監控系統。工廠有50台生產機台，部分已安裝感測器，部分仍依賴人工巡檢。',
     questions: [
       {
@@ -285,6 +297,8 @@ export const MODULES: Module[] = [
     title: '概念圖前測',
     group: ['B', 'C'],
     phase: 1,
+    autoOpenDate: '2026-03-10',
+    autoCloseDate: '2026-03-16',
     questions: [
       {
         id: 'info',
@@ -308,6 +322,7 @@ export const MODULES: Module[] = [
     title: '任務卡 Lab03',
     group: ['A'],
     phase: 2,
+    autoOpenDate: '2026-03-17',
     context: `Lab03 任務情境：LED 燈光控制系統設計
 
 【情境】你是一位受委託的工程師，需要為一家小型辦公室設計一套基於Arduino的LED燈光控制系統，要求：
@@ -343,6 +358,8 @@ export const MODULES: Module[] = [
     group: ['A'],
     phase: 2,
     timeLimit: 20,
+    autoOpenDate: '2026-03-17',
+    autoCloseDate: '2026-03-23',
     questions: [
       {
         id: 'design',
@@ -379,6 +396,7 @@ export const MODULES: Module[] = [
     title: '任務卡 Lab04',
     group: ['A'],
     phase: 2,
+    autoOpenDate: '2026-03-24',
     context: `Lab04 任務情境：環境監控與警報系統設計
 
 【情境】你被委託設計一套工廠環境監控警報系統，需要：
@@ -415,6 +433,8 @@ export const MODULES: Module[] = [
     group: ['A'],
     phase: 2,
     timeLimit: 20,
+    autoOpenDate: '2026-03-24',
+    autoCloseDate: '2026-03-30',
     questions: [
       {
         id: 'design',
@@ -451,6 +471,7 @@ export const MODULES: Module[] = [
     title: '任務卡 Lab05',
     group: ['A'],
     phase: 2,
+    autoOpenDate: '2026-03-31',
     context: `Lab05 任務情境：智慧計數顯示系統設計
 
 【情境】你需要為生產線設計一套零件計數顯示系統：
@@ -488,6 +509,7 @@ export const MODULES: Module[] = [
     group: ['A'],
     phase: 2,
     timeLimit: 20,
+    autoOpenDate: '2026-03-31',
     questions: [
       {
         id: 'design',
@@ -521,10 +543,12 @@ export const MODULES: Module[] = [
   // ----------------------------------------------------------
   {
     id: 'hot_o2',
-    title: 'HOT O\u2082',
+    title: 'HOT O₂',
     group: ['B', 'C'],
     phase: 2,
     timeLimit: 12,
+    autoOpenDate: '2026-03-31',
+    autoCloseDate: '2026-03-31',
     context: '以下題目情境為感測器整合應用，對應你在Lab03\u201305的學習內容。',
     questions: [
       {
@@ -574,6 +598,7 @@ export const MODULES: Module[] = [
     title: '自我效能量表（後測）',
     group: ['A', 'B', 'C'],
     phase: 2,
+    autoOpenDate: '2026-03-31',
     questions: [
       { id: 'se1', type: 'likert5', label: '我有信心完成這門課的實作任務', options: LIKERT5_OPTIONS, required: true },
       { id: 'se2', type: 'likert5', label: '面對新的技術挑戰，我相信自己能找到解決方法', options: LIKERT5_OPTIONS, required: true },
@@ -593,10 +618,12 @@ export const MODULES: Module[] = [
   // ----------------------------------------------------------
   {
     id: 'hot_o3',
-    title: 'HOT O\u2083',
+    title: 'HOT O₃',
     group: ['B', 'C'],
     phase: 3,
     timeLimit: 20,
+    autoOpenDate: '2026-04-28',
+    autoCloseDate: '2026-04-28',
     context: '以下題目情境為完整IoT系統設計，整合Lab03\u201308所有學習內容（包含感測器、通訊、雲端、系統整合）。',
     questions: [
       // A 組 分析層 (5 題)
@@ -692,6 +719,8 @@ export const MODULES: Module[] = [
     group: ['B', 'C'],
     phase: 3,
     timeLimit: 10,
+    autoOpenDate: '2026-04-28',
+    autoCloseDate: '2026-04-28',
     context: '請以「IoT系統」為根節點，畫出你在這門課學到的所有相關概念及其關係。工具：紙本手繪\u2192拍照，或CmapTools截圖。時間限制：10分鐘。',
     questions: [
       {
@@ -712,6 +741,8 @@ export const MODULES: Module[] = [
     group: ['B', 'C'],
     phase: 3,
     timeLimit: 15,
+    autoOpenDate: '2026-04-28',
+    autoCloseDate: '2026-04-28',
     context: '以下為三個工程問題解決情境。請針對每題，依照 G-A-B-E-R 框架作答：G（目標識別）、A（假設識別）、B（方案發想，至少2個）、E（方案評估）、R（最終解決方案）。',
     questions: [
       {
@@ -744,6 +775,7 @@ export const MODULES: Module[] = [
     description: '請針對你在本課程中使用的學習輔助系統，回答以下問題。',
     group: ['A', 'B'],
     phase: 3,
+    autoOpenDate: '2026-04-28',
     questions: [
       { id: 'tam1', type: 'likert5', label: '使用這個系統讓我更深入理解課程內容', options: LIKERT5_OPTIONS, required: true },
       { id: 'tam2', type: 'likert5', label: '系統中的真實情境讓我更能思考技術的應用', options: LIKERT5_OPTIONS, required: true },
