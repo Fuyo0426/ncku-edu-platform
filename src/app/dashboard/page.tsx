@@ -1,0 +1,188 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { getIdentity, GROUP_LABELS, type Identity } from '@/lib/auth'
+import { getModulesForGroup, PHASE_LABELS, type GroupId, type ModuleDefinition, type Phase } from '@/lib/modules'
+import { supabase } from '@/lib/supabase'
+import { CheckCircle, Lock, ChevronRight, LogOut, User } from 'lucide-react'
+
+interface ModuleStatus {
+  module_id: string
+  enabled: boolean
+}
+
+export default function DashboardPage() {
+  const [identity, setIdentity] = useState<Identity | null>(null)
+  const [completedModules, setCompletedModules] = useState<Set<string>>(new Set())
+  const [enabledModules, setEnabledModules] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  const fetchData = useCallback(async (id: Identity) => {
+    try {
+      // Fetch completed modules
+      const { data: responses } = await supabase
+        .from('responses')
+        .select('module_id')
+        .eq('code', id.code)
+
+      if (responses) {
+        setCompletedModules(new Set(responses.map((r: { module_id: string }) => r.module_id)))
+      }
+
+      // Fetch module status
+      const { data: statuses } = await supabase
+        .from('module_status')
+        .select('module_id, enabled')
+        .eq('enabled', true)
+
+      if (statuses) {
+        setEnabledModules(new Set(statuses.map((s: ModuleStatus) => s.module_id)))
+      }
+    } catch (err) {
+      console.error('Failed to fetch data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const id = getIdentity()
+    if (!id || id.role !== 'student') {
+      router.push('/')
+      return
+    }
+    setIdentity(id)
+    fetchData(id)
+  }, [router, fetchData])
+
+  function handleLogout() {
+    document.cookie = 'edu_identity=; path=/; max-age=0'
+    document.cookie = 'edu_role=; path=/; max-age=0'
+    router.push('/')
+  }
+
+  if (loading || !identity) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted">載入中...</p>
+      </div>
+    )
+  }
+
+  const modules = getModulesForGroup(identity.group as GroupId)
+
+  // Group modules by phase
+  const modulesByPhase = modules.reduce<Record<Phase, ModuleDefinition[]>>(
+    (acc, mod) => {
+      if (!acc[mod.phase]) acc[mod.phase] = []
+      acc[mod.phase].push(mod)
+      return acc
+    },
+    {} as Record<Phase, ModuleDefinition[]>
+  )
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Top bar */}
+      <header className="border-b border-border bg-card px-4 py-3">
+        <div className="mx-auto flex max-w-3xl items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-foreground">
+              工業物聯網實驗平台
+            </h1>
+            <p className="text-xs text-muted">國立成功大學</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1">
+              <User className="h-3.5 w-3.5 text-primary" />
+              <span className="text-sm font-medium text-primary">
+                {identity.code}
+              </span>
+              <span className="text-xs text-primary/70">
+                {GROUP_LABELS[identity.group]}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="rounded-lg p-2 text-muted hover:bg-slate-100 hover:text-foreground"
+              title="登出"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="mx-auto max-w-3xl px-4 py-6">
+        <h2 className="mb-6 text-xl font-bold text-foreground">我的待辦項目</h2>
+
+        <div className="space-y-8">
+          {(Object.entries(modulesByPhase) as [Phase, ModuleDefinition[]][]).map(
+            ([phase, mods]) => (
+              <section key={phase}>
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
+                  {PHASE_LABELS[phase]}
+                </h3>
+                <div className="space-y-2">
+                  {mods.map((mod) => {
+                    const completed = completedModules.has(mod.id)
+                    const enabled = enabledModules.has(mod.id)
+
+                    return (
+                      <div
+                        key={mod.id}
+                        className={`card flex items-center justify-between transition-all ${
+                          completed
+                            ? 'border-success/30 bg-green-50/50'
+                            : enabled
+                              ? 'cursor-pointer hover:border-primary/30 hover:shadow-md'
+                              : 'opacity-60'
+                        }`}
+                        onClick={() => {
+                          if (enabled && !completed) {
+                            router.push(`/modules/${mod.id}`)
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          {completed ? (
+                            <CheckCircle className="h-5 w-5 text-success" />
+                          ) : enabled ? (
+                            <ChevronRight className="h-5 w-5 text-primary" />
+                          ) : (
+                            <Lock className="h-5 w-5 text-muted" />
+                          )}
+                          <span
+                            className={`text-sm font-medium ${
+                              completed
+                                ? 'text-success'
+                                : enabled
+                                  ? 'text-foreground'
+                                  : 'text-muted'
+                            }`}
+                          >
+                            {mod.name}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted">
+                          {completed
+                            ? '已完成'
+                            : enabled
+                              ? '進入'
+                              : '未開放'}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
