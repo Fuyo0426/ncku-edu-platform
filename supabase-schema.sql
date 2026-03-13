@@ -5,7 +5,7 @@
 -- 回應資料（學生填寫的所有表單）
 CREATE TABLE IF NOT EXISTS responses (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  code varchar(10) NOT NULL,          -- A01~C05
+  code varchar(10) NOT NULL,          -- A01~C10
   group_id varchar(1) NOT NULL,       -- A/B/C
   module_id varchar(50) NOT NULL,
   data jsonb NOT NULL,                -- 彈性儲存各模組資料

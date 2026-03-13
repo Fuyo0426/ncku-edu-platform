@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { getIdentity } from '@/lib/auth'
 import { ClipboardList, LogOut, ChevronDown, FileText } from 'lucide-react'
 
-// Rubric 只評實踐組 A01–A05
-const RUBRIC_STUDENTS = ['A01', 'A02', 'A03', 'A04', 'A05']
+// Rubric 只評實踐組 A01–A10
+const RUBRIC_STUDENTS = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10']
 
 // 設計說明書評分維度（4維度，各 0–4 分，共 16 分）
 const DESIGN_DIMENSIONS = [
